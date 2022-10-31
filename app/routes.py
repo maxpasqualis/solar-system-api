@@ -1,8 +1,20 @@
 from app import db
 from app.models.planet import Planet
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, abort, make_response
 
 planets_bp = Blueprint("planets_bp", __name__, url_prefix="/planets")
+
+def validate_planet(planet_id):
+    try:
+        planet_id = int(planet_id)
+    except:
+        abort(make_response({"message": f"Invalid planet id {planet_id}: id must be an integer"}, 400))
+    
+    planet = Planet.query.get(planet_id)
+    if not planet:
+        abort(make_response({"message": f"Planet with id {planet_id} does not exist"}, 404))
+    
+    return planet
 
 @planets_bp.route("", methods=["POST"])
 def add_planet():
@@ -34,14 +46,36 @@ def list_planets():
         )
     return jsonify(response)
 
-# class Planet:
-#     def __init__(self, id, name, description, radius, atmosphere):
-#         self.id = id
-#         self.name = name
-#         self.description = description
-#         self.radius = radius
-#         self.atmosphere = atmosphere
+@planets_bp.route("/<planet_id>", methods=["GET"])
+def get_one_planet(planet_id):
+    planet = validate_planet(planet_id)
+    return {
+        "id": planet.id,
+        "name": planet.name,
+        "description": planet.description,
+        "radius": planet.radius
+    }, 200
 
+@planets_bp.route("/<planet_id>", methods=["PUT"])
+def update_planet(planet_id):
+    planet = validate_planet(planet_id)
+    request_body = request.get_json()
+
+    planet.name = request_body["name"]
+    planet.description = request_body["description"]
+    planet.radius = request_body["radius"]
+
+    db.session.commit()
+    return make_response(f"Planet with id {planet_id} successfully updated"), 200
+
+@planets_bp.route("/<planet_id>", methods = ["DELETE"])
+def delete_planet(planet_id):
+    planet = validate_planet(planet_id)
+
+    db.session.delete(planet)
+    db.session.commit()
+
+    return make_response(f"Planet with id {planet_id} successfully deleted"), 200
 
 # planets = [
 #     Planet(1, "Mercury", "", 1516, ["oxygen", "sodium", "hydrogen", "helium", "potassium"]),
@@ -53,26 +87,3 @@ def list_planets():
 #     Planet(7, "Uranus", "", 15759, ["hydrogen", "helium", "methane"]),
 #     Planet(8, "Neptune","", 15299, ["hydrogen","helium","methane"])
 # ]
-
-
-
-# @planets_bp.route("/<planet_id>", methods=["GET"])
-# def get_one_planet(planet_id):
-#     try:
-#         planet_id = int(planet_id)
-#     except ValueError:
-#         response_str = f"Invalid planet_id '{planet_id}'. ID must be an integer"
-#         return jsonify({"message": response_str}), 400
-    
-#     for planet in planets:
-#         if planet.id == planet_id:
-#             return {
-#                 "id": planet.id,
-#                 "name": planet.name,
-#                 "description": planet.description,
-#                 "radius": planet.radius,
-#                 "atmosphere": planet.atmosphere
-#             }
-
-#     response_str = f"Invalid planet_id '{planet_id}'. ID not found"
-#     return jsonify({"message": response_str}), 404
