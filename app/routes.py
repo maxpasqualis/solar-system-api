@@ -32,7 +32,12 @@ def add_planet():
 
 @planets_bp.route("", methods=["GET"])
 def list_planets():
-    planets = Planet.query.all()
+    name_param = request.args.get("name")
+    if name_param is None:
+        planets = Planet.query.all()
+    else:
+        planets = Planet.query.filter_by(name=name_param)
+
     response = []
     for planet in planets:
         response.append(
